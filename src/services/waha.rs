@@ -31,8 +31,8 @@ pub async fn send_text_message(
     };
 
     let mut req = http.post(url).json(&payload);
-    if let Some(token) = &cfg.waha_api_key_plain {
-        req = req.bearer_auth(token);
+    if let Some(api_key) = &cfg.waha_api_key_plain {
+        req = req.header("X-Api-Key", api_key);
     }
 
     let res = req
