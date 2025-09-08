@@ -71,7 +71,7 @@ APP_HOST=0.0.0.0
 APP_PORT=8080
 
 WAHA_BASE_URL=http://localhost:3000
-# WAHA_TOKEN=Bearer <token>    # if your WAHA requires it
+# WAHA_API_KEY_PLAIN=<token>    # if your WAHA requires it
 
 AI_BASE_URL=http://localhost:8000
 AI_MESSAGES_USER_PATH=/agent/messages/user
@@ -144,7 +144,7 @@ services:
             SUMMARIZE_MESSAGE_WINDOW: 4
             SUMMARIZE_MESSAGE_KEEP: 6
             SUMMARIZE_SYSTEM_MESSAGES: "false"
-            # WAHA_TOKEN: "Bearer <token>"
+            # WAHA_API_KEY_PLAIN: <token>
         ports:
             - "8080:8080"
         depends_on:
@@ -155,22 +155,22 @@ services:
 
 ## Configuration (env vars)
 
-| Var                         | Type / Default         | Description                                      |
-| --------------------------- | ---------------------- | ------------------------------------------------ |
-| `APP_HOST`                  | `0.0.0.0`              | Bind host                                        |
-| `APP_PORT`                  | `8080`                 | Bind port                                        |
-| `WAHA_BASE_URL`             | **required**           | WAHA base URL (e.g. `http://waha:3000`)          |
-| `WAHA_TOKEN`                | optional               | Bearer token or header value for WAHA, if needed |
-| `AI_BASE_URL`               | **required**           | AI Agent base URL (e.g. `http://ai-agent:8000`)  |
-| `AI_MESSAGES_USER_PATH`     | `/agent/messages/user` | Path appended to `AI_BASE_URL`                   |
-| `THREAD_PREFIX_WAHA`        | `waha:`                | Prefix for thread id; final id = prefix + wa_id  |
-| `CHAT_INTERFACE`            | `api`                  | Forwarded to AI                                  |
-| `MAX_RETRIES`               | `1`                    | Forwarded to AI                                  |
-| `LOOP_THRESHOLD`            | `3`                    | Forwarded to AI                                  |
-| `TOP_K`                     | `5`                    | Forwarded to AI                                  |
-| `SUMMARIZE_MESSAGE_WINDOW`  | `4`                    | Forwarded to AI                                  |
-| `SUMMARIZE_MESSAGE_KEEP`    | `6`                    | Forwarded to AI                                  |
-| `SUMMARIZE_SYSTEM_MESSAGES` | `false`                | Forwarded to AI                                  |
+| Var                         | Type / Default         | Description                                     |
+| --------------------------- | ---------------------- | ----------------------------------------------- |
+| `APP_HOST`                  | `0.0.0.0`              | Bind host                                       |
+| `APP_PORT`                  | `8080`                 | Bind port                                       |
+| `WAHA_BASE_URL`             | **required**           | WAHA base URL (e.g. `http://waha:3000`)         |
+| `WAHA_API_KEY_PLAIN`        | optional               | X-Api-Key header value for WAHA, if needed      |
+| `AI_BASE_URL`               | **required**           | AI Agent base URL (e.g. `http://ai-agent:8000`) |
+| `AI_MESSAGES_USER_PATH`     | `/agent/messages/user` | Path appended to `AI_BASE_URL`                  |
+| `THREAD_PREFIX_WAHA`        | `waha:`                | Prefix for thread id; final id = prefix + wa_id |
+| `CHAT_INTERFACE`            | `api`                  | Forwarded to AI                                 |
+| `MAX_RETRIES`               | `1`                    | Forwarded to AI                                 |
+| `LOOP_THRESHOLD`            | `3`                    | Forwarded to AI                                 |
+| `TOP_K`                     | `5`                    | Forwarded to AI                                 |
+| `SUMMARIZE_MESSAGE_WINDOW`  | `4`                    | Forwarded to AI                                 |
+| `SUMMARIZE_MESSAGE_KEEP`    | `6`                    | Forwarded to AI                                 |
+| `SUMMARIZE_SYSTEM_MESSAGES` | `false`                | Forwarded to AI                                 |
 
 ## API
 
@@ -237,7 +237,7 @@ services:
    Posts JSON to the AI endpoint and parses an `LlmApiResponse`.
 
 4. **services/waha.rs** → `send_text_message`
-   If `response` is present, posts a WhatsApp `text` message to WAHA’s `/messages` endpoint (adds `Authorization: Bearer …` if `WAHA_TOKEN` is set).
+   If `response` is present, posts a WhatsApp `text` message to WAHA’s `/messages` endpoint (adds `Authorization: Bearer …` if `WAHA_API_KEY_PLAIN` is set).
 
 5. **utils.rs** → `thread_id_for_waha`
    `format!("{}{}", cfg.thread_prefix_waha, user_id)`.

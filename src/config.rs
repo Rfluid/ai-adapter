@@ -15,7 +15,7 @@ pub struct Config {
     /// WAHA base URL (e.g., http://localhost:3000)
     pub waha_base_url: Url,
     /// Optional WAHA token/header if your WAHA needs it
-    pub waha_token: Option<String>,
+    pub waha_api_key_plain: Option<String>,
 
     /// AI base URL (e.g., http://localhost:8000)
     pub ai_base_url: Url,
@@ -57,7 +57,7 @@ impl Config {
         let app_port = parse_or_default::<u16>("APP_PORT", 8080)?;
 
         let waha_base_url = parse_url_required("WAHA_BASE_URL")?;
-        let waha_token = env::var("WAHA_TOKEN").ok();
+        let waha_api_key_plain = env::var("WAHA_API_KEY_PLAIN").ok();
 
         let ai_base_url = parse_url_required("AI_BASE_URL")?;
         let ai_messages_user_path = env_or_default("AI_MESSAGES_USER_PATH", "/agent/messages/user");
@@ -77,7 +77,7 @@ impl Config {
             app_host,
             app_port,
             waha_base_url,
-            waha_token,
+            waha_api_key_plain,
             ai_base_url,
             ai_messages_user_path,
             thread_prefix_waha,
