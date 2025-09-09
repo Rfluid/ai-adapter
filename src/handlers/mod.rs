@@ -13,36 +13,87 @@ pub enum HandleError {
     // This enables `?` to lift TextHandleError into HandleError automatically
     #[error(transparent)]
     Text(#[from] TextHandleError),
+
+    // Other error variants
+    #[error("Event not supported")]
+    EventNotSupported,
+
+    // Payload error variant
+    #[error("Payload is missing")]
+    MissingPayload,
 }
 
 pub async fn dispatch_waha(webhook: WahaWebhook, state: AppState) -> Result<(), HandleError> {
-    let msg = match webhook.message_type.as_str() {
-        "text" => {
-            let body = webhook.text_body.unwrap_or_default();
-            IncomingMessage::Text {
-                user_id: webhook.user_id.clone(),
-                body,
-            }
+    // Check if it is a message event
+    let event = webhook.event;
+    if event != "message" {
+        return Err(HandleError::EventNotSupported);
+    }
+
+    // Check if payload is None and return an error
+    let payload = match webhook.payload {
+        Some(p) => p,                                    // Successfully unwrapped the payload
+        None => return Err(HandleError::MissingPayload), // Return error if payload is None
+    };
+
+    if payload.from_me {
+        return Ok(()); // Ignore payload from user
+    }
+
+    let message_type;
+    let payload_body: Option<String>;
+
+    if !payload.has_media {
+        if let Some(body) = payload.body {
+            // Successfully extracted the body
+            payload_body = Some(body);
+            message_type = "text";
+        } else {
+            // If body is None, handle appropriately
+            payload_body = None;
+            message_type = "media";
         }
+    } else {
+        // Handle case when there is media
+        payload_body = None;
+        message_type = "media";
+    }
+
+    let chat_id = payload.from;
+    let session = webhook.session;
+
+    let thread_id = thread_id_for_waha(&state.cfg, &chat_id);
+
+    let msg = match message_type {
+        "text" => IncomingMessage::Text {
+            chat_id,
+            session,
+            body: payload_body.unwrap_or_default(),
+        },
         other => IncomingMessage::Unsupported {
-            user_id: webhook.user_id.clone(),
+            chat_id,
+            session,
             r#type: other.to_string(),
             raw: webhook.raw.clone(),
         },
     };
 
-    let thread_id = thread_id_for_waha(&state.cfg, &webhook.user_id);
     match msg {
-        IncomingMessage::Text { user_id, body } => {
-            text::handle_text(&state, &thread_id, &user_id, &body).await?;
+        IncomingMessage::Text {
+            chat_id,
+            session,
+            body,
+        } => {
+            text::handle_text(&state, &session, &thread_id, &chat_id, &body).await?;
         }
         IncomingMessage::Unsupported {
-            user_id,
+            chat_id,
+            session,
             r#type,
             raw,
         } => {
             // Send a structured unsupported message to AI so it can decide
-            text::handle_unsupported(&state, &thread_id, &user_id, &r#type, raw).await?;
+            text::handle_unsupported(&state, &session, &thread_id, &chat_id, &r#type, raw).await?;
         }
     }
     Ok(())

@@ -16,6 +16,7 @@ pub enum TextHandleError {
 
 pub async fn handle_text(
     state: &AppState,
+    session: &str,
     thread_id: &str,
     user_id: &str,
     body: &str,
@@ -44,7 +45,7 @@ pub async fn handle_text(
 
     if let Some(reply) = ai_res.response {
         // Only post back if AI intended to respond
-        send_text_message(&state.http, cfg, user_id, &reply)
+        send_text_message(&state.http, cfg, session, user_id, &reply)
             .await
             .map_err(TextHandleError::Waha)?;
     }
@@ -53,6 +54,7 @@ pub async fn handle_text(
 
 pub async fn handle_unsupported(
     state: &AppState,
+    session: &str,
     thread_id: &str,
     user_id: &str,
     message_type: &str,
@@ -81,7 +83,7 @@ pub async fn handle_unsupported(
         .map_err(TextHandleError::Ai)?;
 
     if let Some(reply) = ai_res.response {
-        send_text_message(&state.http, cfg, user_id, &reply)
+        send_text_message(&state.http, cfg, session, user_id, &reply)
             .await
             .map_err(TextHandleError::Waha)?;
     }

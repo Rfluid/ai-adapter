@@ -1,33 +1,32 @@
 use crate::config::Config;
 use serde::Serialize;
-use serde_json::json;
 
 #[derive(Debug, Serialize)]
-struct WahaTextOut<'a> {
-    #[serde(rename = "messaging_product")]
-    messaging_product: &'a str, // WAHA often uses "whatsapp"
-    to: &'a str,
-    r#type: &'a str,
-    text: serde_json::Value,
+struct WahaTextOut {
+    pub session: String,
+    #[serde(rename = "chatId")]
+    pub chat_id: String,
+    #[serde(rename = "text")]
+    pub text_body: String,
 }
 
 pub async fn send_text_message(
     http: &reqwest::Client,
     cfg: &Config,
-    to_user: &str,
-    body: &str,
+    session: &str,
+    chat_id: &str,
+    text_body: &str,
 ) -> Result<(), String> {
     // Adjust path to your WAHA send-message endpoint
     let url = cfg
         .waha_base_url
-        .join("/messages")
+        .join("/api/sendText")
         .map_err(|e| e.to_string())?;
 
     let payload = WahaTextOut {
-        messaging_product: "whatsapp",
-        to: to_user,
-        r#type: "text",
-        text: json!({ "body": body }),
+        chat_id: chat_id.to_string(),
+        text_body: text_body.to_string(),
+        session: session.to_string(),
     };
 
     let mut req = http.post(url).json(&payload);

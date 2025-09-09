@@ -18,15 +18,18 @@ pub async fn receive_waha(
     State(state): State<AppState>,
     Json(payload): Json<JsonValue>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    // Parse into our WAHA model, but keep raw JSON if structure varies
-    let webhook: WahaWebhook = match serde_json::from_value(payload.clone()) {
-        Ok(x) => x,
-        Err(_) => WahaWebhook::from_loose(payload.clone()), // permissive fallback
-    };
+    // Attempt to parse into our WAHA model; if it fails, return an error
+    let webhook: WahaWebhook = serde_json::from_value(payload.clone()).map_err(|err| {
+        // If deserialization fails, return an internal server error with the error message
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Failed to deserialize webhook payload: {err}"),
+        )
+    })?;
 
     info!(
-        "Incoming WAHA webhook (user_id={} type={})",
-        webhook.user_id, webhook.message_type
+        "Incoming WAHA webhook (id={} event={})",
+        webhook.id, webhook.event,
     );
 
     // Normalize and dispatch

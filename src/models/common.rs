@@ -6,11 +6,16 @@ use utoipa::ToSchema;
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum IncomingMessage {
     Text {
-        user_id: String,
+        #[serde(rename = "chatId")]
+        chat_id: String,
         body: String,
+        session: String,
     },
     Unsupported {
-        user_id: String,
+        #[serde(rename = "chatId")]
+        chat_id: String,
+        session: String,
+
         r#type: String,
         raw: serde_json::Value,
     },
