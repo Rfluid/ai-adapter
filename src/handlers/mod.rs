@@ -59,6 +59,11 @@ pub async fn dispatch_waha(webhook: WahaWebhook, state: AppState) -> Result<(), 
         message_type = "media";
     }
 
+    // Handle empty messages on first contact message
+    if payload_body.as_deref() == Some("") {
+        return Ok(());
+    }
+
     let chat_id = payload.from;
     let session = webhook.session;
 
