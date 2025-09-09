@@ -74,7 +74,7 @@ pub async fn dispatch_waha(webhook: WahaWebhook, state: AppState) -> Result<(), 
             chat_id,
             session,
             r#type: other.to_string(),
-            raw: webhook.raw.clone(),
+            // raw: webhook.clone(),
         },
     };
 
@@ -90,10 +90,10 @@ pub async fn dispatch_waha(webhook: WahaWebhook, state: AppState) -> Result<(), 
             chat_id,
             session,
             r#type,
-            raw,
+            // raw,
         } => {
             // Send a structured unsupported message to AI so it can decide
-            text::handle_unsupported(&state, &session, &thread_id, &chat_id, &r#type, raw).await?;
+            text::handle_unsupported(&state, &session, &thread_id, &chat_id, &r#type).await?;
         }
     }
     Ok(())

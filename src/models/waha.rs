@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -16,7 +19,9 @@ pub struct WahaMessagePayload {
     #[serde(rename = "hasMedia")]
     pub has_media: bool,
 
-    pub raw: serde_json::Value,
+    // Allow extra fields in a HashMap
+    #[serde(flatten)]
+    pub extra_fields: Option<HashMap<String, Value>>,
 }
 
 /// A pragmatic WAHA view. WAHA variants differ; we store the minimum we need.
@@ -28,5 +33,5 @@ pub struct WahaWebhook {
     pub event: String,
 
     pub payload: Option<WahaMessagePayload>,
-    pub raw: serde_json::Value,
+    pub extra_fields: Option<HashMap<String, Value>>,
 }

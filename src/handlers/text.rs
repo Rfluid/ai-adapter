@@ -58,13 +58,12 @@ pub async fn handle_unsupported(
     thread_id: &str,
     user_id: &str,
     message_type: &str,
-    raw: serde_json::Value,
+    // raw: WahaWebhook,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
     let req = InputRequest {
         data: json!({
             "unsupported_message_type": message_type,
-            "raw": raw,
             "source": "waha",
             "user_id": user_id,
         }),

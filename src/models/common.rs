@@ -17,7 +17,7 @@ pub enum IncomingMessage {
         session: String,
 
         r#type: String,
-        raw: serde_json::Value,
+        // raw: WahaWebhook,
     },
 }
 
