@@ -5,6 +5,7 @@ use crate::{
 };
 use text::TextHandleError;
 use thiserror::Error;
+use tracing::warn;
 
 pub mod text;
 
@@ -23,7 +24,11 @@ pub enum HandleError {
     MissingPayload,
 }
 
-pub async fn dispatch_waha(webhook: WahaWebhook, state: AppState) -> Result<(), HandleError> {
+pub async fn dispatch_waha(
+    webhook: WahaWebhook,
+    state: AppState,
+    allowed_wa_ids: Option<Vec<String>>,
+) -> Result<(), HandleError> {
     // Check if it is a message event
     let event = webhook.event;
     if event != "message" {
@@ -65,6 +70,16 @@ pub async fn dispatch_waha(webhook: WahaWebhook, state: AppState) -> Result<(), 
     }
 
     let chat_id = payload.from;
+    if let Some(wa_ids) = allowed_wa_ids {
+        if !wa_ids.contains(&chat_id) {
+            // If the chat_id is NOT in the allowed list, stop processing.
+            warn!(
+                "DEV MODE: Blocking message from '{}' as it's not in the allowed list: {:?}",
+                chat_id, wa_ids
+            );
+            return Ok(()); // Exit early
+        }
+    }
     let session = webhook.session;
 
     let thread_id = thread_id_for_waha(&state.cfg, &chat_id);
