@@ -3,6 +3,7 @@ use crate::{
     models::ai::{InputRequest, LlmApiResponse},
     services::{ai::send_user_message, waha::send_text_message},
 };
+use chrono::{DateTime, Utc};
 use serde_json::json;
 use thiserror::Error;
 
@@ -20,14 +21,20 @@ pub async fn handle_text(
     thread_id: &str,
     user_id: &str,
     body: &str,
+    timestamp: i64,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
+
+    // If you want to convert to UTC or local time:
+    let datetime = DateTime::from_timestamp(timestamp, 0).unwrap_or(Utc::now());
 
     let req = InputRequest {
         data: json!({
             "text": body,
             "source": "waha",
             "user_id": user_id,
+            "timestamp": timestamp,
+            "datetime": datetime.to_string(),
         }),
         chat_interface: cfg.chat_interface.clone(),
         max_retries: cfg.max_retries,

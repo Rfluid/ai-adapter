@@ -10,6 +10,7 @@ pub enum IncomingMessage {
         chat_id: String,
         body: String,
         session: String,
+        timestamp: i64,
     },
     Unsupported {
         #[serde(rename = "chatId")]

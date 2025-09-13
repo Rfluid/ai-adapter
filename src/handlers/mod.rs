@@ -83,11 +83,13 @@ pub async fn dispatch_waha(
     let session = webhook.session;
 
     let thread_id = thread_id_for_waha(&state.cfg, &chat_id);
+    let timestamp = payload.timestamp;
 
     let msg = match message_type {
         "text" => IncomingMessage::Text {
             chat_id,
             session,
+            timestamp,
             body: payload_body.unwrap_or_default(),
         },
         other => IncomingMessage::Unsupported {
@@ -103,8 +105,9 @@ pub async fn dispatch_waha(
             chat_id,
             session,
             body,
+            timestamp,
         } => {
-            text::handle_text(&state, &session, &thread_id, &chat_id, &body).await?;
+            text::handle_text(&state, &session, &thread_id, &chat_id, &body, timestamp).await?;
         }
         IncomingMessage::Unsupported {
             chat_id,
