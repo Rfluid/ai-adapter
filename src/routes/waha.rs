@@ -14,7 +14,9 @@ use crate::{AppState, handlers, models::waha::WahaWebhook};
     tag = "webhooks",
     params(
         ("x-allowed-wa-ids" = Option<String>, Header, description = "Comma-separated list of WhatsApp IDs to allow in dev mode.", example = "999999999999@c.us,111111111111@c.us"),
-        ("x-typing" = Option<bool>, Header, description = "`true` if typing is allowed. `false` otherwise. Default to `true`", example = true)
+        ("x-typing" = Option<bool>, Header, description = "If `true`, typing indicators are allowed. Defaults to `true`.", example = true),
+        ("x-send-seen" = Option<bool>, Header, description = "If `true`, sending read receipts (seen indicators) is allowed. Defaults to `true`.", example = true),
+        ("x-ai-response" = Option<bool>, Header, description = "If `true`, AI-generated responses are allowed. Useful for development scenarios. Defaults to `true`.", example = true)
     ),
     request_body = WahaWebhook,
     responses(
