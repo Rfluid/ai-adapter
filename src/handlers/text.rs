@@ -140,14 +140,50 @@ pub async fn handle_unsupported(
     thread_id: &str,
     chat_id: &str,
     message_type: &str,
+    timestamp: i64,
+    typing: Option<bool>,
     // raw: WahaWebhook,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
+
+    // The guard is initialized here. It will be `Some` only if we start typing.
+    // This is more idiomatic and cleaner than a mutable Option.
+    let _typing_guard = if typing.unwrap_or(false) {
+        // --- Start Typing ---
+        start_typing(
+            &state.http,
+            cfg,
+            WahaTyping {
+                chat_id: chat_id.to_string(),
+                session: session.to_string(),
+            },
+        )
+        .await
+        .map_err(TextHandleError::Waha)?;
+
+        // --- Create the guard right after successfully starting to type ---
+        // If start_typing succeeds, the guard is created and will be dropped
+        // at the end of the function's scope, ensuring "stop typing" is called.
+        Some(TypingGuard {
+            http: state.http.clone(),
+            cfg: state.cfg.clone(),
+            session: session.to_string(),
+            chat_id: chat_id.to_string(),
+        })
+    } else {
+        // If typing is false or None, the guard is None and no drop action occurs.
+        None
+    };
+
+    let datetime = DateTime::from_timestamp(timestamp, 0).unwrap_or(Utc::now());
+
     let req = InputRequest {
         data: json!({
             "unsupported_message_type": message_type,
             "source": "waha",
             "chat_id": chat_id,
+            "timestamp": timestamp,
+            "datetime": datetime.to_string(),
         }),
         chat_interface: cfg.chat_interface.clone(),
         max_retries: cfg.max_retries,

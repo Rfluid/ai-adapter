@@ -16,6 +16,7 @@ pub enum IncomingMessage {
         #[serde(rename = "chatId")]
         chat_id: String,
         session: String,
+        timestamp: i64,
 
         r#type: String,
         // raw: WahaWebhook,
