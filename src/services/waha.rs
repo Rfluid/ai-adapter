@@ -63,7 +63,7 @@ pub async fn stop_typing(
     // Adjust path to your WAHA send-message endpoint
     let url = cfg
         .waha_base_url
-        .join("/api/startTyping")
+        .join("/api/stopTyping")
         .map_err(|e| e.to_string())?;
 
     let mut req = http.post(url).json(&payload);
@@ -89,7 +89,7 @@ pub async fn send_seen(
     // Adjust path to your WAHA send-message endpoint
     let url = cfg
         .waha_base_url
-        .join("/api/startTyping")
+        .join("/api/sendSeen")
         .map_err(|e| e.to_string())?;
 
     let mut req = http.post(url).json(&payload);
