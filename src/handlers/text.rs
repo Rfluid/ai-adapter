@@ -2,7 +2,7 @@ use crate::{
     AppState,
     models::{
         ai::{InputRequest, LlmApiResponse},
-        waha::{WahaSeen, WahaTextOut},
+        waha::WahaTextOut,
     },
     services::{ai::send_user_message, waha::send_text_message},
 };
