@@ -28,25 +28,37 @@ struct TypingGuard {
     cfg: Config,
     session: String,
     chat_id: String,
+    stopped: bool,
+}
+
+impl TypingGuard {
+    /// Explicitly stop typing *now* (awaited), preventing Drop from firing again.
+    async fn stop_now(mut self) {
+        let payload = WahaTyping {
+            chat_id: self.chat_id.clone(),
+            session: self.session.clone(),
+        };
+        if let Err(e) = stop_typing(&self.http, &self.cfg, payload).await {
+            eprintln!("Failed to stop typing indicator: {}", e);
+        }
+        self.stopped = true;
+        // self is dropped right after; Drop sees stopped=true and does nothing.
+    }
 }
 
 impl Drop for TypingGuard {
     fn drop(&mut self) {
-        // We can't await in drop, so we spawn a new task.
-        // This is "fire-and-forget," which is fine for a non-critical
-        // action like clearing the "typing..." indicator.
-
-        // Clone the necessary owned data to move it into the async block.
+        if self.stopped {
+            return; // already stopped explicitly
+        }
         let http = self.http.clone();
         let cfg = self.cfg.clone();
         let waha_typing_payload = WahaTyping {
             chat_id: self.chat_id.clone(),
             session: self.session.clone(),
         };
-
         tokio::spawn(async move {
             if let Err(e) = stop_typing(&http, &cfg, waha_typing_payload).await {
-                // You can log the error here if needed, but you can't return it.
                 eprintln!("Failed to stop typing indicator: {}", e);
             }
         });
@@ -89,7 +101,7 @@ pub async fn handle_text(
 
     // The guard is initialized here. It will be `Some` only if we start typing.
     // This is more idiomatic and cleaner than a mutable Option.
-    let _typing_guard = if typing {
+    let mut typing_guard = if typing {
         // --- Start Typing ---
         start_typing(
             &state.http,
@@ -110,6 +122,7 @@ pub async fn handle_text(
             cfg: state.cfg.clone(),
             session: session.to_string(),
             chat_id: chat_id.to_string(),
+            stopped: false,
         })
     } else {
         // If typing is false or None, the guard is None and no drop action occurs.
@@ -142,6 +155,11 @@ pub async fn handle_text(
             .map_err(TextHandleError::Ai)?; // If this fails, the guard is dropped here!
 
         if let Some(reply) = ai_res.response {
+            // ⬇️ Ensure we stop typing *before* we send the message
+            if let Some(guard) = typing_guard.take() {
+                guard.stop_now().await; // awaited: indicator is cleared first
+            }
+
             send_text_message(
                 &state.http,
                 cfg,
@@ -196,7 +214,7 @@ pub async fn handle_unsupported(
 
     // The guard is initialized here. It will be `Some` only if we start typing.
     // This is more idiomatic and cleaner than a mutable Option.
-    let _typing_guard = if typing {
+    let mut typing_guard = if typing {
         // --- Start Typing ---
         start_typing(
             &state.http,
@@ -217,6 +235,7 @@ pub async fn handle_unsupported(
             cfg: state.cfg.clone(),
             session: session.to_string(),
             chat_id: chat_id.to_string(),
+            stopped: false,
         })
     } else {
         // If typing is false or None, the guard is None and no drop action occurs.
@@ -249,6 +268,11 @@ pub async fn handle_unsupported(
             .map_err(TextHandleError::Ai)?;
 
         if let Some(reply) = ai_res.response {
+            // ⬇️ Ensure we stop typing *before* we send the message
+            if let Some(guard) = typing_guard.take() {
+                guard.stop_now().await; // awaited: indicator is cleared first
+            }
+
             send_text_message(
                 &state.http,
                 cfg,
