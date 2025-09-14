@@ -87,6 +87,7 @@ pub async fn dispatch_waha(
 
     let thread_id = thread_id_for_waha(&state.cfg, &chat_id);
     let timestamp = payload.timestamp;
+    let message_id = payload.id;
 
     let msg = match message_type {
         "text" => IncomingMessage::Text {
@@ -116,6 +117,7 @@ pub async fn dispatch_waha(
                 &session,
                 &thread_id,
                 &chat_id,
+                &message_id,
                 &body,
                 timestamp,
                 typing,
@@ -138,6 +140,7 @@ pub async fn dispatch_waha(
                 &session,
                 &thread_id,
                 &chat_id,
+                &message_id,
                 &r#type,
                 timestamp,
                 typing,

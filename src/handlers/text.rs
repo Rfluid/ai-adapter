@@ -58,6 +58,7 @@ pub async fn handle_text(
     session: &str,
     thread_id: &str,
     chat_id: &str,
+    message_id: &str,
     body: &str,
     timestamp: i64,
     typing: bool,
@@ -73,7 +74,7 @@ pub async fn handle_text(
             WahaSeen {
                 chat_id: chat_id.to_string(),
                 session: session.to_string(),
-                message_ids: Vec::new(),
+                message_ids: vec![message_id.to_string()],
                 participant: None,
             },
         )
@@ -158,6 +159,7 @@ pub async fn handle_unsupported(
     session: &str,
     thread_id: &str,
     chat_id: &str,
+    message_id: &str,
     message_type: &str,
     timestamp: i64,
     typing: bool,
@@ -174,7 +176,7 @@ pub async fn handle_unsupported(
             WahaSeen {
                 chat_id: chat_id.to_string(),
                 session: session.to_string(),
-                message_ids: Vec::new(),
+                message_ids: vec![message_id.to_string()],
                 participant: None,
             },
         )
