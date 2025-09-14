@@ -29,6 +29,8 @@ pub async fn dispatch_waha(
     state: AppState,
     allowed_wa_ids: Option<Vec<String>>,
     typing: bool,
+    send_seen: bool,
+    ai_response: bool,
 ) -> Result<(), HandleError> {
     // Check if it is a message event
     let event = webhook.event;
@@ -110,7 +112,15 @@ pub async fn dispatch_waha(
             timestamp,
         } => {
             text::handle_text(
-                &state, &session, &thread_id, &chat_id, &body, timestamp, typing,
+                &state,
+                &session,
+                &thread_id,
+                &chat_id,
+                &body,
+                timestamp,
+                typing,
+                send_seen,
+                ai_response,
             )
             .await?;
         }
@@ -124,7 +134,15 @@ pub async fn dispatch_waha(
         } => {
             // Send a structured unsupported message to AI so it can decide
             text::handle_unsupported(
-                &state, &session, &thread_id, &chat_id, &r#type, timestamp, typing,
+                &state,
+                &session,
+                &thread_id,
+                &chat_id,
+                &r#type,
+                timestamp,
+                typing,
+                send_seen,
+                ai_response,
             )
             .await?;
         }

@@ -3,11 +3,11 @@ use crate::{
     config::Config,
     models::{
         ai::{InputRequest, LlmApiResponse},
-        waha::{WahaTextOut, WahaTyping},
+        waha::{WahaSeen, WahaTextOut, WahaTyping},
     },
     services::{
         ai::send_user_message,
-        waha::{send_text_message, start_typing, stop_typing},
+        waha::{send_seen, send_text_message, start_typing, stop_typing},
     },
 };
 use chrono::{DateTime, Utc};
@@ -61,8 +61,25 @@ pub async fn handle_text(
     body: &str,
     timestamp: i64,
     typing: bool,
+    will_send_seen: bool,
+    ai_response: bool,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
+
+    if will_send_seen {
+        send_seen(
+            &state.http,
+            cfg,
+            WahaSeen {
+                chat_id: chat_id.to_string(),
+                session: session.to_string(),
+                message_ids: Vec::new(),
+                participant: None,
+            },
+        )
+        .await
+        .map_err(TextHandleError::Waha)?;
+    }
 
     // The guard is initialized here. It will be `Some` only if we start typing.
     // This is more idiomatic and cleaner than a mutable Option.
@@ -113,22 +130,24 @@ pub async fn handle_text(
         thread_id: thread_id.to_string(),
     };
 
-    let ai_res: LlmApiResponse = send_user_message(&state.http, cfg, &req)
-        .await
-        .map_err(TextHandleError::Ai)?; // If this fails, the guard is dropped here!
+    if ai_response {
+        let ai_res: LlmApiResponse = send_user_message(&state.http, cfg, &req)
+            .await
+            .map_err(TextHandleError::Ai)?; // If this fails, the guard is dropped here!
 
-    if let Some(reply) = ai_res.response {
-        send_text_message(
-            &state.http,
-            cfg,
-            WahaTextOut {
-                chat_id: chat_id.to_string(),
-                text_body: reply,
-                session: session.to_string(),
-            },
-        )
-        .await
-        .map_err(TextHandleError::Waha)?; // Or here!
+        if let Some(reply) = ai_res.response {
+            send_text_message(
+                &state.http,
+                cfg,
+                WahaTextOut {
+                    chat_id: chat_id.to_string(),
+                    text_body: reply,
+                    session: session.to_string(),
+                },
+            )
+            .await
+            .map_err(TextHandleError::Waha)?; // Or here!
+        }
     }
 
     Ok(()) // If successful, the guard is dropped here as the function returns.
@@ -142,9 +161,26 @@ pub async fn handle_unsupported(
     message_type: &str,
     timestamp: i64,
     typing: bool,
+    will_send_seen: bool,
+    ai_response: bool,
     // raw: WahaWebhook,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
+
+    if will_send_seen {
+        send_seen(
+            &state.http,
+            cfg,
+            WahaSeen {
+                chat_id: chat_id.to_string(),
+                session: session.to_string(),
+                message_ids: Vec::new(),
+                participant: None,
+            },
+        )
+        .await
+        .map_err(TextHandleError::Waha)?;
+    }
 
     // The guard is initialized here. It will be `Some` only if we start typing.
     // This is more idiomatic and cleaner than a mutable Option.
@@ -195,22 +231,25 @@ pub async fn handle_unsupported(
         thread_id: thread_id.to_string(),
     };
 
-    let ai_res: LlmApiResponse = send_user_message(&state.http, cfg, &req)
-        .await
-        .map_err(TextHandleError::Ai)?;
+    if ai_response {
+        let ai_res: LlmApiResponse = send_user_message(&state.http, cfg, &req)
+            .await
+            .map_err(TextHandleError::Ai)?;
 
-    if let Some(reply) = ai_res.response {
-        send_text_message(
-            &state.http,
-            cfg,
-            WahaTextOut {
-                chat_id: chat_id.to_string(),
-                text_body: reply,
-                session: session.to_string(),
-            },
-        )
-        .await
-        .map_err(TextHandleError::Waha)?;
+        if let Some(reply) = ai_res.response {
+            send_text_message(
+                &state.http,
+                cfg,
+                WahaTextOut {
+                    chat_id: chat_id.to_string(),
+                    text_body: reply,
+                    session: session.to_string(),
+                },
+            )
+            .await
+            .map_err(TextHandleError::Waha)?;
+        }
     }
+
     Ok(())
 }

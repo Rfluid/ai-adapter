@@ -40,7 +40,6 @@ pub async fn receive_waha(
         )
     })?;
 
-    // Logic to handle development mode headers ---
     let allowed_wa_ids: Option<Vec<String>>;
     let mut typing: bool = true;
     if let Some(will_type) = headers.get("x-typing") {
@@ -50,6 +49,30 @@ pub async fn receive_waha(
             return Err((
                 StatusCode::BAD_REQUEST,
                 "Header 'x-typing' contains invalid characters.".to_string(),
+            ));
+        }
+    }
+
+    let mut send_seen: bool = true;
+    if let Some(will_send_seen) = headers.get("x-send-seen") {
+        if let Ok(will_send_seen_str) = will_send_seen.to_str() {
+            send_seen = will_send_seen_str == "true";
+        } else {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Header 'x-send-seen' contains invalid characters.".to_string(),
+            ));
+        }
+    }
+
+    let mut ai_response: bool = true;
+    if let Some(will_ai_respond) = headers.get("x-ai-response") {
+        if let Ok(will_ai_respond_str) = will_ai_respond.to_str() {
+            ai_response = will_ai_respond_str == "true";
+        } else {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Header 'x-send-seen' contains invalid characters.".to_string(),
             ));
         }
     }
@@ -84,14 +107,21 @@ pub async fn receive_waha(
     );
 
     // Normalize and dispatch
-    handlers::dispatch_waha(webhook, state, allowed_wa_ids, typing)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("handler error: {e}"),
-            )
-        })?;
+    handlers::dispatch_waha(
+        webhook,
+        state,
+        allowed_wa_ids,
+        typing,
+        send_seen,
+        ai_response,
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("handler error: {e}"),
+        )
+    })?;
 
     // WAHA expects 200 quickly
     Ok(StatusCode::OK)
