@@ -28,6 +28,7 @@ pub async fn dispatch_waha(
     webhook: WahaWebhook,
     state: AppState,
     allowed_wa_ids: Option<Vec<String>>,
+    typing: Option<bool>,
 ) -> Result<(), HandleError> {
     // Check if it is a message event
     let event = webhook.event;
@@ -107,7 +108,10 @@ pub async fn dispatch_waha(
             body,
             timestamp,
         } => {
-            text::handle_text(&state, &session, &thread_id, &chat_id, &body, timestamp).await?;
+            text::handle_text(
+                &state, &session, &thread_id, &chat_id, &body, timestamp, typing,
+            )
+            .await?;
         }
         IncomingMessage::Unsupported {
             chat_id,

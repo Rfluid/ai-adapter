@@ -13,11 +13,14 @@ use crate::{AppState, handlers, models::waha::WahaWebhook};
     path = "/webhooks/waha",
     tag = "webhooks",
     params(
-        ("x-allowed-wa-ids" = Option<String>, Header, description = "Comma-separated list of WhatsApp IDs to allow in dev mode.")
+        ("x-allowed-wa-ids" = Option<String>, Header, description = "Comma-separated list of WhatsApp IDs to allow in dev mode.", example = "999999999999@c.us,111111111111@c.us"),
+        ("x-typing" = Option<bool>, Header, description = "`true` if typing is allowed. `false` otherwise. Default to `true`", example = true)
     ),
     request_body = WahaWebhook,
     responses(
         (status = 200, description = "Webhook accepted"),
+        (status = 400, description = "Bad Request - Invalid webhook payload", body = crate::models::common::ErrorMessage),
+        (status = 403, description = "Forbidden - WhatsApp ID not allowed", body = crate::models::common::ErrorMessage),
         (status = 500, description = "Handler error", body = crate::models::common::ErrorMessage)
     )
 )]
@@ -37,6 +40,17 @@ pub async fn receive_waha(
 
     // Logic to handle development mode headers ---
     let allowed_wa_ids: Option<Vec<String>>;
+    let mut typing: Option<bool> = Some(true);
+    if let Some(will_type) = headers.get("x-typing") {
+        if let Ok(will_type_str) = will_type.to_str() {
+            typing = Some(will_type_str == "true");
+        } else {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Header 'x-typing' contains invalid characters.".to_string(),
+            ));
+        }
+    }
 
     // In dev mode, the x-allowed-wa-ids header is required
     if let Some(ids_header) = headers.get("x-allowed-wa-ids") {
@@ -68,7 +82,7 @@ pub async fn receive_waha(
     );
 
     // Normalize and dispatch
-    handlers::dispatch_waha(webhook, state, allowed_wa_ids)
+    handlers::dispatch_waha(webhook, state, allowed_wa_ids, typing)
         .await
         .map_err(|e| {
             (
