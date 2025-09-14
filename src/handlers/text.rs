@@ -67,6 +67,11 @@ pub async fn handle_text(
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
 
+    // Acquire the lock for the current chat_id.
+    // The `_guard` will ensure the lock is released when this function returns,
+    // whether it's successful or an error occurs.
+    let _guard = state.mutex_swapper.lock(chat_id.to_string()).await;
+
     if will_send_seen {
         send_seen(
             &state.http,
@@ -168,6 +173,11 @@ pub async fn handle_unsupported(
     // raw: WahaWebhook,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
+
+    // Acquire the lock for the current chat_id.
+    // The `_guard` will ensure the lock is released when this function returns,
+    // whether it's successful or an error occurs.
+    let _guard = state.mutex_swapper.lock(chat_id.to_string()).await;
 
     if will_send_seen {
         send_seen(

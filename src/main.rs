@@ -4,11 +4,15 @@ mod handlers;
 mod models;
 mod routes;
 mod services;
+mod synch;
 mod utils;
+
+use std::sync::Arc;
 
 use axum::{Router, routing::post};
 use config::Config;
 use reqwest;
+use synch::mutex_swapper::MutexSwapper;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
@@ -18,6 +22,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub struct AppState {
     pub cfg: Config,
     pub http: reqwest::Client,
+    pub mutex_swapper: Arc<MutexSwapper<String>>,
 }
 
 #[tokio::main]
@@ -31,8 +36,15 @@ async fn main() {
     // Compute before moving state anywhere
     let addr = format!("{}:{}", cfg.app_host, cfg.app_port);
 
+    // Create a new instance of the MutexSwapper
+    let mutex_swapper = Arc::new(MutexSwapper::new());
+
     // Now build state and move it into the app (no clone needed)
-    let state = AppState { cfg, http };
+    let state = AppState {
+        cfg,
+        http,
+        mutex_swapper,
+    };
 
     let app = Router::new()
         .route("/webhooks/waha", post(routes::waha::receive_waha))
