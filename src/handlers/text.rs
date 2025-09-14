@@ -1,6 +1,9 @@
 use crate::{
     AppState,
-    models::ai::{InputRequest, LlmApiResponse},
+    models::{
+        ai::{InputRequest, LlmApiResponse},
+        waha::{WahaSeen, WahaTextOut},
+    },
     services::{ai::send_user_message, waha::send_text_message},
 };
 use chrono::{DateTime, Utc};
@@ -52,9 +55,17 @@ pub async fn handle_text(
 
     if let Some(reply) = ai_res.response {
         // Only post back if AI intended to respond
-        send_text_message(&state.http, cfg, session, user_id, &reply)
-            .await
-            .map_err(TextHandleError::Waha)?;
+        send_text_message(
+            &state.http,
+            cfg,
+            WahaTextOut {
+                chat_id: user_id.to_string(),
+                text_body: reply,
+                session: session.to_string(),
+            },
+        )
+        .await
+        .map_err(TextHandleError::Waha)?;
     }
     Ok(())
 }
@@ -89,9 +100,17 @@ pub async fn handle_unsupported(
         .map_err(TextHandleError::Ai)?;
 
     if let Some(reply) = ai_res.response {
-        send_text_message(&state.http, cfg, session, user_id, &reply)
-            .await
-            .map_err(TextHandleError::Waha)?;
+        send_text_message(
+            &state.http,
+            cfg,
+            WahaTextOut {
+                chat_id: user_id.to_string(),
+                text_body: reply,
+                session: session.to_string(),
+            },
+        )
+        .await
+        .map_err(TextHandleError::Waha)?;
     }
     Ok(())
 }

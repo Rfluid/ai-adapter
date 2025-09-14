@@ -35,3 +35,30 @@ pub struct WahaWebhook {
     pub payload: Option<WahaMessagePayload>,
     pub extra_fields: Option<HashMap<String, Value>>,
 }
+
+#[derive(Debug, Serialize)]
+pub struct WahaTyping {
+    pub session: String,
+    #[serde(rename = "chatId")]
+    pub chat_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WahaSeen {
+    pub session: String,
+    #[serde(rename = "chatId")]
+    pub chat_id: String,
+
+    #[serde(rename = "messageIds")]
+    pub message_ids: Vec<String>,
+    pub participant: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WahaTextOut {
+    pub session: String,
+    #[serde(rename = "chatId")]
+    pub chat_id: String,
+    #[serde(rename = "text")]
+    pub text_body: String,
+}
