@@ -28,7 +28,7 @@ pub async fn dispatch_waha(
     webhook: WahaWebhook,
     state: AppState,
     allowed_wa_ids: Option<Vec<String>>,
-    typing: Option<bool>,
+    typing: bool,
 ) -> Result<(), HandleError> {
     // Check if it is a message event
     let event = webhook.event;

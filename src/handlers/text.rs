@@ -60,13 +60,13 @@ pub async fn handle_text(
     chat_id: &str,
     body: &str,
     timestamp: i64,
-    typing: Option<bool>,
+    typing: bool,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
 
     // The guard is initialized here. It will be `Some` only if we start typing.
     // This is more idiomatic and cleaner than a mutable Option.
-    let _typing_guard = if typing.unwrap_or(false) {
+    let _typing_guard = if typing {
         // --- Start Typing ---
         start_typing(
             &state.http,
@@ -141,14 +141,14 @@ pub async fn handle_unsupported(
     chat_id: &str,
     message_type: &str,
     timestamp: i64,
-    typing: Option<bool>,
+    typing: bool,
     // raw: WahaWebhook,
 ) -> Result<(), TextHandleError> {
     let cfg = &state.cfg;
 
     // The guard is initialized here. It will be `Some` only if we start typing.
     // This is more idiomatic and cleaner than a mutable Option.
-    let _typing_guard = if typing.unwrap_or(false) {
+    let _typing_guard = if typing {
         // --- Start Typing ---
         start_typing(
             &state.http,

@@ -42,10 +42,10 @@ pub async fn receive_waha(
 
     // Logic to handle development mode headers ---
     let allowed_wa_ids: Option<Vec<String>>;
-    let mut typing: Option<bool> = Some(true);
+    let mut typing: bool = true;
     if let Some(will_type) = headers.get("x-typing") {
         if let Ok(will_type_str) = will_type.to_str() {
-            typing = Some(will_type_str == "true");
+            typing = will_type_str == "true";
         } else {
             return Err((
                 StatusCode::BAD_REQUEST,
