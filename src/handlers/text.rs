@@ -134,10 +134,10 @@ pub async fn handle_text(
     let req = InputRequest {
         data: json!({
             "text": body,
-            "source": "waha",
-            "chat_id": chat_id,
-            "timestamp": timestamp,
-            "datetime": datetime.to_string(),
+            // "source": "waha",
+            // "chat_id": chat_id,
+            // "timestamp": timestamp,
+            "current_date": datetime.to_string(),
         }),
         chat_interface: cfg.chat_interface.clone(),
         max_retries: cfg.max_retries,
