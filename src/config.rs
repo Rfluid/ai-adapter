@@ -17,6 +17,9 @@ pub struct Config {
     /// Optional WAHA token/header if your WAHA needs it
     pub waha_api_key_plain: Option<String>,
 
+    /// Optional Wacraft integration settings (requires base url, email, and password)
+    pub wacraft: Option<WacraftConfig>,
+
     /// AI base URL (e.g., http://localhost:8000)
     pub ai_base_url: Url,
     /// Path for the AI endpoint that receives user messages
@@ -25,6 +28,8 @@ pub struct Config {
 
     /// Thread prefix for WAHA conversations (env), combined with user’s wa_id.
     pub thread_prefix_waha: String,
+    /// Thread prefix for Wacraft conversations (env), combined with user’s wa_id.
+    pub thread_prefix_wacraft: String,
 
     /// Agent knobs (read from env, forwarded to AI)
     pub chat_interface: String, // default "api"
@@ -63,6 +68,7 @@ impl Config {
         let ai_messages_user_path = env_or_default("AI_MESSAGES_USER_PATH", "/agent/messages/user");
 
         let thread_prefix_waha = env_or_default("THREAD_PREFIX_WAHA", "waha:");
+        let thread_prefix_wacraft = env_or_default("THREAD_PREFIX_WACRAFT", "wacraft:");
 
         // Agent knobs (match your agent’s docs)
         let chat_interface = env_or_default("CHAT_INTERFACE", "api");
@@ -78,9 +84,11 @@ impl Config {
             app_port,
             waha_base_url,
             waha_api_key_plain,
+            wacraft: load_wacraft_config()?,
             ai_base_url,
             ai_messages_user_path,
             thread_prefix_waha,
+            thread_prefix_wacraft,
             chat_interface,
             max_retries,
             loop_threshold,
@@ -128,4 +136,57 @@ fn parse_url_required(key: &'static str) -> Result<Url, ConfigError> {
         name: key,
         value: raw,
     })
+}
+
+fn parse_optional_i64(key: &'static str, raw: Option<String>) -> Result<Option<i64>, ConfigError> {
+    match raw {
+        Some(value) if !value.trim().is_empty() => value
+            .parse::<i64>()
+            .map(Some)
+            .map_err(|_| ConfigError::InvalidNumber { name: key, value }),
+        _ => Ok(None),
+    }
+}
+
+fn load_wacraft_config() -> Result<Option<WacraftConfig>, ConfigError> {
+    let base_raw = match env::var("WACRAFT_BASE_URL") {
+        Ok(v) if !v.trim().is_empty() => v,
+        Ok(_) | Err(env::VarError::NotPresent) => return Ok(None),
+        Err(_) => return Ok(None),
+    };
+
+    let base_url = Url::parse(&base_raw).map_err(|_| ConfigError::InvalidUrl {
+        name: "WACRAFT_BASE_URL",
+        value: base_raw.clone(),
+    })?;
+
+    let email = env::var("WACRAFT_EMAIL").map_err(|_| ConfigError::MissingVar("WACRAFT_EMAIL"))?;
+    let password =
+        env::var("WACRAFT_PASSWORD").map_err(|_| ConfigError::MissingVar("WACRAFT_PASSWORD"))?;
+
+    let access_token = env::var("WACRAFT_ACCESS_TOKEN").ok();
+    let refresh_token = env::var("WACRAFT_REFRESH_TOKEN").ok();
+    let token_expires_at = parse_optional_i64(
+        "WACRAFT_TOKEN_EXPIRES_AT",
+        env::var("WACRAFT_TOKEN_EXPIRES_AT").ok(),
+    )?;
+
+    Ok(Some(WacraftConfig {
+        base_url,
+        email,
+        password,
+        access_token,
+        refresh_token,
+        token_expires_at,
+    }))
+}
+
+#[derive(Debug, Clone)]
+pub struct WacraftConfig {
+    pub base_url: Url,
+    pub email: String,
+    pub password: String,
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub token_expires_at: Option<i64>,
 }

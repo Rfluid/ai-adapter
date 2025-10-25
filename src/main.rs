@@ -12,6 +12,7 @@ use std::sync::Arc;
 use axum::{Router, routing::post};
 use config::Config;
 use reqwest;
+use services::wacraft::WacraftClient;
 use synch::mutex_swapper::MutexSwapper;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -23,6 +24,7 @@ pub struct AppState {
     pub cfg: Config,
     pub http: reqwest::Client,
     pub mutex_swapper: Arc<MutexSwapper<String>>,
+    pub wacraft_client: Option<WacraftClient>,
 }
 
 #[tokio::main]
@@ -39,15 +41,22 @@ async fn main() {
     // Create a new instance of the MutexSwapper
     let mutex_swapper = Arc::new(MutexSwapper::new());
 
+    let wacraft_client = cfg
+        .wacraft
+        .as_ref()
+        .map(|settings| WacraftClient::new(settings.clone(), http.clone()));
+
     // Now build state and move it into the app (no clone needed)
     let state = AppState {
         cfg,
         http,
         mutex_swapper,
+        wacraft_client,
     };
 
     let app = Router::new()
         .route("/webhooks/waha", post(routes::waha::receive_waha))
+        .route("/webhooks/wacraft", post(routes::wacraft::receive_wacraft))
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", apidoc::ApiDoc::openapi()))
         .with_state(state);
 

@@ -1,11 +1,11 @@
-# AI Adapter (Rust) — WAHA → AI Agent Bridge
+# AI Adapter (Rust) — WAHA & Wacraft → AI Agent Bridge
 
 A tiny, production-ready Axum (Rust) service that:
 
-1. receives **WAHA** webhooks,
+1. receives **WAHA** and **Wacraft** webhooks,
 2. normalizes them into your **AI Agent**’s `InputRequest`,
 3. posts to the AI, and
-4. **only** replies back to WAHA if the AI returned a `response`.
+4. replies back to the originating provider if the AI returned a `response`.
 
 It’s structured so you can easily plug in **new messaging products** and **new message types**.
 
@@ -13,9 +13,9 @@ It’s structured so you can easily plug in **new messaging products** and **new
 
 - **Axum 0.7** HTTP server (Tokio runtime).
 - **Env-driven config** (`dotenvy`) with safe defaults.
-- **Strict models** (`serde`) and typed services for **AI** and **WAHA**.
+- **Strict models** (`serde`) and typed services for **AI**, **WAHA**, and **Wacraft**.
 - **Message dispatch** with a clear switch for `text` and `unsupported`.
-- **Threading**: `thread_id = THREAD_PREFIX_WAHA + user_wa_id`.
+- **Threading**: `thread_id = THREAD_PREFIX_<provider> + user_wa_id`.
 - **OpenAPI/Swagger** docs via **utoipa** + **utoipa-swagger-ui** at `/docs`.
 - **Docker** multi-stage build, small runtime, non-root.
 
@@ -32,17 +32,21 @@ ai-adapter/
 │   ├── utils.rs
 │   ├── apidoc.rs
 │   ├── routes/
-│   │   └── waha.rs
+│   │   ├── waha.rs
+│   │   └── wacraft.rs
 │   ├── services/
 │   │   ├── ai.rs
-│   │   └── waha.rs
+│   │   ├── waha.rs
+│   │   └── wacraft.rs
 │   ├── models/
 │   │   ├── common.rs
 │   │   ├── ai.rs
-│   │   └── waha.rs
+│   │   ├── waha.rs
+│   │   └── wacraft.rs
 │   └── handlers/
 │       ├── mod.rs
-│       └── text.rs
+│       ├── text.rs
+│       └── wacraft.rs
 └── tests/
     └── integration.rs
 ```
@@ -73,10 +77,18 @@ APP_PORT=8080
 WAHA_BASE_URL=http://localhost:3000
 # WAHA_API_KEY_PLAIN=<token>    # if your WAHA requires it
 
+# WACRAFT_BASE_URL=https://wacraft.example.com
+# WACRAFT_EMAIL=user@example.com
+# WACRAFT_PASSWORD=super-secret
+# WACRAFT_ACCESS_TOKEN=...       # optional persisted token
+# WACRAFT_REFRESH_TOKEN=...      # optional persisted refresh token
+# WACRAFT_TOKEN_EXPIRES_AT=0     # optional unix timestamp (seconds)
+
 AI_BASE_URL=http://localhost:8000
 AI_MESSAGES_USER_PATH=/agent/messages/user
 
 THREAD_PREFIX_WAHA=waha:
+THREAD_PREFIX_WACRAFT=wacraft:
 
 CHAT_INTERFACE=api
 MAX_RETRIES=1
@@ -107,7 +119,7 @@ curl -X POST http://localhost:8080/webhooks/waha \
       }'
 ```
 
-If your AI responds with `{ "response": "..." }`, the adapter posts a WhatsApp text back to WAHA at `POST {WAHA_BASE_URL}/messages`.
+If your AI responds with `{ "response": "..." }`, the adapter posts a WhatsApp text back through the originating provider (WAHA via `/api/sendText`, Wacraft via `/message/whatsapp`).
 
 ## Docker
 
@@ -161,9 +173,16 @@ services:
 | `APP_PORT`                  | `8080`                 | Bind port                                       |
 | `WAHA_BASE_URL`             | **required**           | WAHA base URL (e.g. `http://waha:3000`)         |
 | `WAHA_API_KEY_PLAIN`        | optional               | X-Api-Key header value for WAHA, if needed      |
+| `WACRAFT_BASE_URL`          | optional               | Wacraft base URL (e.g. `https://wacraft.example.com`) |
+| `WACRAFT_EMAIL`             | optional               | Wacraft login email (required if base URL set)  |
+| `WACRAFT_PASSWORD`          | optional               | Wacraft password (required if base URL set)     |
+| `WACRAFT_ACCESS_TOKEN`      | optional               | Persisted Wacraft access token (auto refreshed) |
+| `WACRAFT_REFRESH_TOKEN`     | optional               | Persisted Wacraft refresh token                 |
+| `WACRAFT_TOKEN_EXPIRES_AT`  | optional               | Access token expiry (unix seconds)              |
 | `AI_BASE_URL`               | **required**           | AI Agent base URL (e.g. `http://ai-agent:8000`) |
 | `AI_MESSAGES_USER_PATH`     | `/agent/messages/user` | Path appended to `AI_BASE_URL`                  |
-| `THREAD_PREFIX_WAHA`        | `waha:`                | Prefix for thread id; final id = prefix + wa_id |
+| `THREAD_PREFIX_WAHA`        | `waha:`                | Prefix for WAHA thread ids                      |
+| `THREAD_PREFIX_WACRAFT`     | `wacraft:`             | Prefix for Wacraft thread ids                   |
 | `CHAT_INTERFACE`            | `api`                  | Forwarded to AI                                 |
 | `MAX_RETRIES`               | `1`                    | Forwarded to AI                                 |
 | `LOOP_THRESHOLD`            | `3`                    | Forwarded to AI                                 |
@@ -214,33 +233,79 @@ services:
     - `200 OK` – Webhook accepted (reply posting, if any, is already triggered).
     - `500` – Handler error (see logs).
 
+### POST `/webhooks/wacraft`
+
+- **Purpose**: Receive WhatsApp Cloud-style webhooks relayed by Wacraft and trigger the AI.
+- **Request body**: Mirrors Meta’s webhook shape. Typical payload (trimmed):
+
+```json
+{
+    "receiver_data": {
+        "timestamp": "1761056813",
+        "type": "interactive",
+        "interactive": {
+            "type": "list_reply",
+            "list_reply": {
+                "id": "escolher_area_jumpstart_amizades_comp2",
+                "title": "Amizades"
+            }
+        },
+        "id": "wamid.HBgMNTU5MTg0Mjg4Nzc4FQIAEhgWM0VCMDIwNTlCMjIwRjI3NkY1NTU4MwA=",
+        "from": "559184288778"
+    },
+    "from_id": "65740d21-1cb3-4271-9baf-fe2f61f4edf6",
+    "messaging_product_id": "b66d1d61-3eb2-4e7f-b425-b06f4c6e3792",
+    "id": "b7b9dc88-60ee-4c46-bb2c-a6f45b67e6c3",
+    "created_at": "2025-10-21T14:26:53.948629Z",
+    "updated_at": "2025-10-21T14:26:53.948629Z",
+    "deleted_at": "0001-01-01T00:00:00Z"
+}
+```
+
+- **Behavior**:
+    1. Reads `receiver_data.from` (WhatsApp ID) and `receiver_data.type`.
+    2. Builds `thread_id = THREAD_PREFIX_WACRAFT + from`.
+    3. Normalizes known message types (text and interactive list/button replies) and forwards them to `handlers::wacraft`; everything else is flagged as unsupported.
+    4. Calls `POST {AI_BASE_URL}{AI_MESSAGES_USER_PATH}`.
+    5. **If** AI returns `response`, sends a WhatsApp text via `POST {WACRAFT_BASE_URL}/message/whatsapp` (fetches the contact ID via Wacraft before sending).
+
+- **Responses**:
+    - `200 OK` – Webhook accepted.
+    - `500` – Handler error (see logs).
+
 ### Documentation (Swagger / OpenAPI)
 
 - **Swagger UI**: `GET /docs`
 - **OpenAPI JSON**: `GET /api-docs/openapi.json`
 
-> The OpenAPI includes schemas for `WahaWebhook`, `InputRequest` (doc variant), `LlmApiResponse`, and a basic error body.
+> The OpenAPI includes schemas for `WahaWebhook`, `WacraftWebhook`, `InputRequest` (doc variant), `LlmApiResponse`, and a basic error body.
 
 ## Internals / Flow
 
 1. **routes/waha.rs** → `receive_waha`
    Parses incoming JSON into `WahaWebhook` (lenient), then calls `handlers::dispatch_waha`.
 
-2. **handlers/**
+2. **routes/wacraft.rs** → `receive_wacraft`
+   Parses Wacraft conversation webhooks (`receiver_data`) into `WacraftWebhook`, then calls `handlers::dispatch_wacraft`.
+
+3. **handlers/**
     - `dispatch_waha` switches on `message_type`:
         - `text` → `handlers::text::handle_text`
         - everything else → `handlers::text::handle_unsupported`
-
+    - `dispatch_wacraft` unwraps WhatsApp Cloud payloads and routes text/unsupported messages to `handlers::wacraft`.
     - Both build an `InputRequest` using knobs from `Config`.
 
-3. **services/ai.rs** → `send_user_message`
+4. **services/ai.rs** → `send_user_message`
    Posts JSON to the AI endpoint and parses an `LlmApiResponse`.
 
-4. **services/waha.rs** → `send_text_message`
-   If `response` is present, posts a WhatsApp `text` message to WAHA’s `/messages` endpoint (adds `Authorization: Bearer …` if `WAHA_API_KEY_PLAIN` is set).
+5. **services/waha.rs** → `send_text_message`
+   If `response` is present, posts a WhatsApp `text` message to WAHA’s `/api/sendText` endpoint (adds `X-Api-Key` if `WAHA_API_KEY_PLAIN` is set).
 
-5. **utils.rs** → `thread_id_for_waha`
-   `format!("{}{}", cfg.thread_prefix_waha, user_id)`.
+6. **services/wacraft.rs** → `WacraftClient`
+   Manages OAuth tokens, looks up contact IDs, and posts WhatsApp text messages to Wacraft’s `/message/whatsapp` endpoint.
+
+7. **utils.rs** → `thread_id_for_waha` / `thread_id_for_wacraft`
+   Prefix helper functions for per-provider thread IDs.
 
 ## Extending
 
@@ -269,5 +334,6 @@ services:
 
 ## Notes
 
-- WAHA’s send-message endpoint path (`/messages`) may vary by version/config—adjust in `services/waha.rs` if needed.
+- WAHA’s send-message endpoint path defaults to `/api/sendText`; tweak `services/waha.rs` if your deployment differs.
+- Wacraft’s mark-as-read endpoint requires additional context. The current implementation treats it as a no-op until those parameters are clarified.
 - The AI response type in code is `LlmApiResponse` with `response: Option<String>` for tolerance. If your AI always returns a `response`, set it to a non-optional field and tighten checks.
